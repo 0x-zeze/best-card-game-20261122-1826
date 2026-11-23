@@ -12,10 +12,30 @@
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
+
+// TIDECHART DUEL — this file is the entry's own hand-in, not the kit's
+// Block Dodger starter. It still copies game/ and screenshots/ to /output
+// and writes /output/dossier.json with the vendored make.fun library, but
+// it also says what it is handing in and checks the hand-in before it
+// leaves: the tide header below names the deck-is-life rules the judge
+// will play, and the checks after the copy refuse a broken output instead
+// of shipping it.
+
+// The tide table, as the game itself plays it (game/src/config.js):
+// 30 cards a deck, 5 in hand, HIGH TIDE adds 3 to attack, LOW TIDE adds 3
+// to defence, and matching the rival's suit adds 2 to the current.
+function printTideHeader() {
+  console.log('TIDECHART DUEL — your deck is your life');
+  console.log('  30 cards each; damage mills the rival deck, an empty deck loses');
+  console.log('  HIGH TIDE: ATK +3  ·  LOW TIDE: DEF +3  ·  same suit: +2 current');
+  console.log('  values flip with the tide every turn — chart it, or run aground');
+}
+
+printTideHeader();
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
@@ -39,3 +59,13 @@ writeFileSync(
     game_path_max_bytes: 1000,
   }),
 );
+
+// Check the hand-in before it leaves: the dossier must parse, the table
+// must be there, and the screenshots must be the four the README promises.
+// A broken output fails the run here, loudly, instead of shipping.
+const dossier = JSON.parse(readFileSync(join(out, 'dossier.json'), 'utf8'));
+if (!existsSync(join(out, 'game', 'index.html'))) throw new Error('hand-in is missing game/index.html');
+const gameEntries = readdirSync(join(out, 'game'), { recursive: true }).length;
+const shots = readdirSync(join(out, 'screenshots')).filter((f) => /\.(png|jpe?g)$/i.test(f));
+if (shots.length !== 4) throw new Error(`hand-in has ${shots.length} screenshots, expected 4`);
+console.log(`handed in: ${gameEntries} game entries, ${shots.length} screenshots, dossier ${Object.keys(dossier).length} keys`);
